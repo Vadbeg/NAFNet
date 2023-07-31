@@ -72,6 +72,7 @@ class NAFBlock(nn.Module):
         y = inp + x * self.beta
 
         x = self.conv4(self.norm2(y))
+        # x = self.conv4(y)
         x = self.sg(x)
         x = self.conv5(x)
 
@@ -95,6 +96,8 @@ class NAFNet(nn.Module):
         self.middle_blks = nn.ModuleList()
         self.ups = nn.ModuleList()
         self.downs = nn.ModuleList()
+
+        self.convertable = True
 
         chan = width
         for num in enc_blk_nums:
@@ -130,8 +133,8 @@ class NAFNet(nn.Module):
         self.padder_size = 2 ** len(self.encoders)
 
     def forward(self, inp):
-        B, C, H, W = inp.shape
-        inp = self.check_image_size(inp)
+        # B, C, H, W = inp.shape
+        # inp = self.check_image_size(inp)
 
         x = self.intro(inp)
 
@@ -144,15 +147,35 @@ class NAFNet(nn.Module):
 
         x = self.middle_blks(x)
 
-        for decoder, up, enc_skip in zip(self.decoders, self.ups, encs[::-1]):
+        ### START: CHANGE FOR SCRIPTING
+        # for decoder, up, enc_skip in zip(self.decoders, self.ups, encs[::-1]):
+        #     x = up(x)
+        #     x = x + enc_skip
+        #     x = decoder(x)
+
+        encs = encs[::-1]
+        for idx, (decoder, up) in enumerate(zip(self.decoders, self.ups)):
+            enc_skip = encs[idx]
+
             x = up(x)
             x = x + enc_skip
             x = decoder(x)
+        ### END: CHANGE FOR SCRIPTING
 
         x = self.ending(x)
         x = x + inp
 
-        return x[:, :, :H, :W]
+        # return x[:, :, :H, :W]
+
+        if self.convertable:
+            x = torch.clip(x, min=0., max=1.)
+            x = x * 255.
+            x = x[0]
+            x = torch.transpose(x, dim0=0, dim1=1)
+            x = torch.transpose(x, dim0=1, dim1=2)
+            print(x.size())
+
+        return x
 
     def check_image_size(self, x):
         _, _, h, w = x.size()
@@ -175,22 +198,51 @@ class NAFNetLocal(Local_Base, NAFNet):
 
 
 if __name__ == '__main__':
+    import resource
+    def using(point=""):
+        # print(f'using .. {point}')
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        global Total, LastMem
+
+        # if usage[2]/1024.0 - LastMem > 0.01:
+        # print(point, usage[2]/1024.0)
+        # print(point, usage[2] / 1024.0)
+
+        LastMem = usage[2] / 1024.0
+        return usage[2] / 1024.0
+
     img_channel = 3
     width = 32
-
-    # enc_blks = [2, 2, 4, 8]
-    # middle_blk_num = 12
-    # dec_blks = [2, 2, 2, 2]
-
-    enc_blks = [1, 1, 1, 28]
-    middle_blk_num = 1
-    dec_blks = [1, 1, 1, 1]
     
-    net = NAFNet(img_channel=img_channel, width=width, middle_blk_num=middle_blk_num,
+    enc_blks = [2, 2, 2, 20]
+    middle_blk_num = 2
+    dec_blks = [2, 2, 2, 2]
+    
+    print('enc blks', enc_blks, 'middle blk num', middle_blk_num, 'dec blks', dec_blks, 'width' , width)
+    
+    using('start . ')
+    net = NAFNet(img_channel=img_channel, width=width, middle_blk_num=middle_blk_num, 
                       enc_blk_nums=enc_blks, dec_blk_nums=dec_blks)
 
+    using('network .. ')
 
-    inp_shape = (3, 256, 256)
+    # for n, p in net.named_parameters()
+    #     print(n, p.shape)
+
+
+    inp = torch.randn((4, 3, 256, 256))
+
+    out = net(inp)
+    final_mem = using('end .. ')
+    # out.sum().backward()
+
+    # out.sum().backward()
+
+    # using('backward .. ')
+
+    # exit(0)
+
+    inp_shape = (3, 512, 512)
 
     from ptflops import get_model_complexity_info
 
@@ -200,3 +252,8 @@ if __name__ == '__main__':
     macs = float(macs[:-4])
 
     print(macs, params)
+
+    print('total .. ', params * 8 + final_mem)
+
+
+

@@ -81,10 +81,10 @@ def replace_layers(model, base_size, train_size, fast_imp, **kwargs):
             ## compound module, go inside it
             replace_layers(m, base_size, train_size, fast_imp, **kwargs)
 
-        if isinstance(m, nn.AdaptiveAvgPool2d):
-            pool = AvgPool2d(base_size=base_size, fast_imp=fast_imp, train_size=train_size)
-            assert m.output_size == 1
-            setattr(model, n, pool)
+        # if isinstance(m, nn.AdaptiveAvgPool2d):
+        #     pool = AvgPool2d(base_size=base_size, fast_imp=fast_imp, train_size=train_size)
+        #     assert m.output_size == 1
+        #     setattr(model, n, pool)
 
 
 '''

@@ -296,8 +296,21 @@ class LayerNorm2d(nn.Module):
         self.register_parameter('bias', nn.Parameter(torch.zeros(channels)))
         self.eps = eps
 
+    # def forward(self, x):
+    #     return LayerNormFunction.apply(x, self.weight, self.bias, self.eps)
+
     def forward(self, x):
-        return LayerNormFunction.apply(x, self.weight, self.bias, self.eps)
+        N, C, H, W = x.size()
+        mu = x.mean(1, keepdim=True)
+        var = (x - mu).pow(2).mean(1, keepdim=True)
+        y = (x - mu) / (var + self.eps).sqrt()
+        y = self.weight.view(1, C, 1, 1) * y + self.bias.view(1, C, 1, 1)
+
+        # print('mu', mu)
+        # print('var', var)
+        # print('eps', self.eps)
+        # exit()
+        return y
 
 # handle multiple input
 class MySequential(nn.Sequential):

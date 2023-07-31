@@ -244,7 +244,11 @@ class ImageRestorationModel(BaseModel):
                 j = i + m
                 if j >= n:
                     j = n
+
+                # print(self.lq[i:j].shape)
+                # print('lq', self.lq[i:j].max(), self.lq[i:j].min())
                 pred = self.net_g(self.lq[i:j])
+                # print('pred', pred.max(), pred.min())
                 if isinstance(pred, list):
                     pred = pred[-1]
                 outs.append(pred.detach().cpu())

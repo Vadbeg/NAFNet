@@ -70,7 +70,9 @@ def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
         tensor = [tensor]
     result = []
     for _tensor in tensor:
+        print(_tensor.max(), _tensor.min())
         _tensor = _tensor.squeeze(0).float().detach().cpu().clamp_(*min_max)
+        print(_tensor.max(), _tensor.min())
         _tensor = (_tensor - min_max[0]) / (min_max[1] - min_max[0])
 
         n_dim = _tensor.dim()

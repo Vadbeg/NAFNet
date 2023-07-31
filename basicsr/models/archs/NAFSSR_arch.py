@@ -117,11 +117,14 @@ class NAFNetSR(nn.Module):
         self.up_scale = up_scale
 
     def forward(self, inp):
+        # print('inp.shape nafssr', inp.shape)
         inp_hr = F.interpolate(inp, scale_factor=self.up_scale, mode='bilinear')
         if self.dual:
             inp = inp.chunk(2, dim=1)
         else:
             inp = (inp, )
+
+
         feats = [self.intro(x) for x in inp]
         feats = self.body(*feats)
         out = torch.cat([self.up(x) for x in feats], dim=1)
